@@ -33,34 +33,35 @@ function createDom(fiber) {
   return dom;
 }
 
+let wipRoot = null;
+let nextUnitOfWork = null;
 function render(element, container) {
-  nextUnitOfWork = {
+  wipRoot = {
     dom: container,
     props: {
       children: [element]
     }
   }
+  nextUnitOfWork = wipRoot;
 }
 
+requestIdleCallback(workLoop);
 
-let nextUnitOfWork = null;
 function workLoop(deadline) {
   let shouldYield = false;
   while (nextUnitOfWork && !shouldYield) {
     nextUnitOfWork = performUnitOfWork(nextUnitOfWork);
     shouldYield = deadline.timeRemaining() < 1;
   }
+  if (!nextUnitOfWork && wipRoot) {
+    commitRoot();
+  }
   requestIdleCallback(workLoop);
 }
-
-requestIdleCallback(workLoop);
 
 function performUnitOfWork(fiber) {
   if (!fiber.dom) {
     fiber.dom = createDom(fiber);
-  }
-  if (fiber.parent) {
-    fiber.parent.dom.append(fiber.dom);
   }
   const elements = fiber.props.children;
   let index = 0;
@@ -91,6 +92,21 @@ function performUnitOfWork(fiber) {
     }
     nextFiber = nextFiber.parent;
   }
+}
+
+function commitRoot() {
+  commitWork(wipRoot.child);
+  wipRoot = null;
+}
+
+function commitWork(fiber) {
+  if (!fiber) {
+    return;
+  }
+  const domParent = fiber.parent.dom;
+  domParent.append(fiber.dom);
+  commitWork(fiber.child);
+  commitWork(fiber.sibling);
 }
 
 const Didact = {
