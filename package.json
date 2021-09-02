@@ -7,6 +7,7 @@
     "start": "react-scripts start",
     "build": "react-scripts build"
   },
+  "homepage": ".",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/BarryYan/build-your-own-react.git"
@@ -16,7 +17,6 @@
   "bugs": {
     "url": "https://github.com/BarryYan/build-your-own-react/issues"
   },
-  "homepage": "https://github.com/BarryYan/build-your-own-react#readme",
   "dependencies": {
     "react": "^17.0.2",
     "react-dom": "^17.0.2",

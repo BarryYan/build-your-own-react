@@ -27,7 +27,7 @@ function render(element, container) {
   const dom = type === ELEMENT_TYPE.TEXT_ELEMENT
     ? document.createTextNode("")
     : document.createElement(type);
-  Object.entries(restProps).forEach(([value, name]) => {
+  Object.entries(restProps).forEach(([name, value]) => {
     dom[name] = value;
   })
   children.forEach(child => {
@@ -41,13 +41,13 @@ const Didact = {
   render,
 };
 
-
-/** @_jsx Didact.createElement */
+/** @jsxRuntime classic /
+/** @jsx Didact.createElement */
 const element = (
-  <div style={{ background: "salmon" }}>
+  <div style="background: red">
     <h1>Hello World</h1>
     Test
-    <h2 style={{textAlign:"right"}}>from Didact</h2>
+    <h2 style="text-align: right">from Didact</h2>
   </div>
 );
 const container = document.getElementById("root");
