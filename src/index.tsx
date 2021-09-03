@@ -106,10 +106,7 @@ function performUnitOfWork(fiber: Fiber):Fiber|null {
   if (!fiber.dom) {
     fiber.dom = createDom(fiber);
   }
-  if (fiber.parent) {
-    // @ts-ignore
-    fiber.parent.dom.append(fiber.dom);
-  }
+  
   const elements = fiber.props.children;
   let index = 0;
   let prevSibling:Fiber|null = null;
