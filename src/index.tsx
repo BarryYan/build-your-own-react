@@ -1,6 +1,6 @@
 enum ELEMENT_TYPE {
   TEXT_ELEMENT = 'TEXT_ELEMENT',
-  UNKNOW_ELEMENT = 'UNKNOW_ELEMENT'
+  REACT_ELEMENT = 'REACT_ELEMENT'
 }
 
 interface Element {
@@ -69,7 +69,7 @@ let deletions: Fiber[] = [];
 
 function render(element: Element, container: HTMLElement) {
   wipRoot = {
-    type: ELEMENT_TYPE.UNKNOW_ELEMENT,
+    type: ELEMENT_TYPE.REACT_ELEMENT,
     dom: container,
     props: {
       children: [element]
@@ -107,12 +107,12 @@ function workLoop(deadline: IdleDeadline) {
 
 
 function performUnitOfWork(fiber: Fiber): Fiber | null {
-  if (!fiber.dom) {
-    fiber.dom = createDom(fiber);
+  const isFunctionComponent = typeof fiber.type === 'function';
+  if (isFunctionComponent) {
+    updateFunctionComponent(fiber);
+  } else {
+    updateHostComponent(fiber);
   }
-
-  const elements = fiber.props.children;
-  reconcileChildren(fiber, elements);
 
   if (fiber.child) {
     return fiber.child;
@@ -125,6 +125,19 @@ function performUnitOfWork(fiber: Fiber): Fiber | null {
     nextFiber = nextFiber.parent;
   }
   return null;
+}
+
+function updateFunctionComponent(fiber: Fiber) {
+  const children = [(fiber.type as unknown as Function)(fiber.props)]
+  reconcileChildren(fiber, children);
+}
+
+function updateHostComponent(fiber: Fiber) {
+  if (!fiber.dom) {
+    fiber.dom = createDom(fiber);
+  }
+  const elements = fiber.props.children;
+  reconcileChildren(fiber, elements);
 }
 
 function reconcileChildren(wipFiber: Fiber, elements: Element[]) {
@@ -194,16 +207,28 @@ function commitWork(fiber: Fiber | null) {
   if (!fiber) {
     return;
   }
-  const domParent = fiber?.parent?.dom;
+  let domParentFiber = fiber.parent;
+  while (!domParentFiber?.dom) {
+    domParentFiber = domParentFiber!.parent;
+  }
+  const domParent = domParentFiber?.dom;
   if (fiber.effectTag === EFFECT_TAG.PLACEMENT && fiber.dom) {
     domParent?.append(fiber.dom as Node);
   } else if (fiber.effectTag === EFFECT_TAG.UPDATE && fiber.dom) {
     updateDom(fiber.dom, fiber.alternate!.props, fiber.props);
   } else if (fiber.effectTag === EFFECT_TAG.DELETION) {
-    domParent?.removeChild(fiber.dom as Node);
+    commitDeletion(fiber, domParent)
   }
   commitWork(fiber.child);
   commitWork(fiber.sibling);
+}
+
+function commitDeletion(fiber: Fiber | null, domParent: HTMLElement) {
+  if (fiber?.dom) {
+    domParent.removeChild(fiber.dom);
+  } else {
+    commitDeletion(fiber!.child, domParent);
+  }
 }
 
 const isEvent = (key: string) => key.startsWith('on');
@@ -266,27 +291,18 @@ const Didact = {
 /** @jsxRuntime classic /
 /** @jsx Didact.createElement */
 const container = document.getElementById("root") as HTMLElement;
-// @ts-ignore
-const updateValue = (e) => {
-  console.log(e.target.value)
-  rerender(e.target.value);
-}
-const rerender = (value: string) => {
-  const element = (
+
+const App = (props: { name: string }) => {
+  const { name } = props;
+  return (
     <div style={{ background: 'red' }}>
-      <h1>Hello World</h1>
-      Test
-      <br />
-      <button onClick={() => console.log('click')}>Click me</button>
-      <br />
-      <input type="text" onInput={(e) => updateValue(e)} value={value} />
-      <h2 style={{ textAlign: "center" }}>from Didact: {value}</h2>
+      <h1>Hello {name}</h1>
     </div>
   );
-  Didact.render(element, container);
 }
-rerender("render");
 
+const element = <App name="World" />;
+Didact.render(element, container);
 
 
 export { };
