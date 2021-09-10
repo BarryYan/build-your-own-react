@@ -20,7 +20,11 @@ interface Fiber extends Element {
   child: Fiber | null;
   sibling: Fiber | null;
   alternate: Fiber | null;
-  effectTag?: EFFECT_TAG
+  effectTag?: EFFECT_TAG;
+  hooks?: Array<{
+    state: any,
+    queue: Array<Function>
+  }>;
 }
 
 interface Props {
@@ -127,7 +131,13 @@ function performUnitOfWork(fiber: Fiber): Fiber | null {
   return null;
 }
 
+let wipFiber: Fiber | null = null;
+let hookIndex: number = 0;
+
 function updateFunctionComponent(fiber: Fiber) {
+  wipFiber = fiber;
+  hookIndex = 0;
+  wipFiber.hooks = [];
   const children = [(fiber.type as unknown as Function)(fiber.props)]
   reconcileChildren(fiber, children);
 }
@@ -138,6 +148,37 @@ function updateHostComponent(fiber: Fiber) {
   }
   const elements = fiber.props.children;
   reconcileChildren(fiber, elements);
+}
+
+function useState(initState: any) {
+  const oldHook = wipFiber?.alternate && wipFiber?.alternate.hooks && wipFiber?.alternate.hooks[hookIndex];
+  const hook = {
+    state: oldHook ? oldHook.state : initState,
+    queue: []
+  }
+
+  const actions = oldHook ? oldHook.queue : [];
+  actions.forEach(action => {
+    hook.state = action(hook.state)
+  });
+
+  // @ts-ignore
+  const setState = (state) => {
+    const action = typeof state === 'function' ? state : () => state;
+    // @ts-ignore
+    hook.queue.push(action);
+
+    wipRoot = {
+      dom: currentRoot!.dom,
+      props: currentRoot!.props,
+      alternate: currentRoot,
+    } as Fiber;
+    nextUnitOfWork = wipRoot
+    deletions = []
+  }
+  wipFiber?.hooks?.push(hook);
+  hookIndex++;
+  return [hook.state, setState];
 }
 
 function reconcileChildren(wipFiber: Fiber, elements: Element[]) {
@@ -286,6 +327,7 @@ function updateDom(dom: HTMLElement, prevProps: Props, nextProps: Props) {
 const Didact = {
   createElement,
   render,
+  useState
 };
 
 /** @jsxRuntime classic /
@@ -293,10 +335,12 @@ const Didact = {
 const container = document.getElementById("root") as HTMLElement;
 
 const App = (props: { name: string }) => {
+  const [count, setCount] = Didact.useState(0);
   const { name } = props;
   return (
-    <div style={{ background: 'red' }}>
-      <h1>Hello {name}</h1>
+    <div style={{ background: 'red' }} >
+      <h1 onClick={() => setCount(count + 1)}>Hello {name}</h1>
+      <h1 onClick={() => setCount((c: number) => c + 1)}>Count: {count}</h1>
     </div>
   );
 }
